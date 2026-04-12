@@ -1,0 +1,212 @@
+name: CI/CD – Build, Test & Deploy
+
+on:
+  push:
+    branches:
+      - main
+      - "release/**"
+  pull_request:
+    branches:
+      - main
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/fintechapp
+
+jobs:
+  # ─────────────────────────────────────────────
+  # Job 1: Lint & Unit Tests
+  # ─────────────────────────────────────────────
+  test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: app
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests with coverage
+        run: npm run test:ci
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: app/coverage/
+          retention-days: 7
+
+  # ─────────────────────────────────────────────
+  # Job 2: Build & Push Docker image
+  # ─────────────────────────────────────────────
+  build:
+    name: Build & Push Image
+    runs-on: ubuntu-latest
+    needs: test
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
+      image_digest: ${{ steps.build-push.outputs.digest }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=sha,prefix=sha-,format=short
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and push Docker image
+        id: build-push
+        uses: docker/build-push-action@v5
+        with:
+          context: ./app
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true
+
+  # ─────────────────────────────────────────────
+  # Job 3: Deploy to Dev environment
+  # ─────────────────────────────────────────────
+  deploy-dev:
+    name: Deploy to Dev
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name != 'pull_request'
+    environment:
+      name: dev
+      url: https://dev.fintechapp.example.com
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: "v1.29.0"
+
+      - name: Configure kubeconfig (Dev)
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.DEV_KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Extract short SHA
+        id: sha
+        run: echo "short_sha=$(echo ${{ github.sha }} | cut -c1-7)" >> "$GITHUB_OUTPUT"
+
+      - name: Update image tag in dev overlay
+        run: |
+          cd k8s/overlays/dev
+          # Use kustomize edit to pin the exact image digest for immutable deployments
+          kustomize edit set image ghcr.io/sankarikals/fintechapp:dev=\
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ steps.sha.outputs.short_sha }}
+
+      - name: Apply Kustomize dev overlay
+        run: |
+          kubectl apply -k k8s/overlays/dev --server-side
+          kubectl rollout status deployment/dev-fintechapp \
+            -n fintechapp --timeout=120s
+
+      - name: Smoke test – health endpoint
+        run: |
+          CLUSTER_IP=$(kubectl get svc dev-fintechapp -n fintechapp \
+            -o jsonpath='{.spec.clusterIP}')
+          kubectl run smoke-test --rm -i --restart=Never \
+            --image=curlimages/curl:latest \
+            -- curl -sf "http://${CLUSTER_IP}/health" || true
+
+  # ─────────────────────────────────────────────
+  # Job 4: Deploy to Production (main branch only)
+  # ─────────────────────────────────────────────
+  deploy-prod:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: deploy-dev
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: production
+      url: https://fintechapp.example.com
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: "v1.29.0"
+
+      - name: Configure kubeconfig (Prod)
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.PROD_KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Extract short SHA
+        id: sha
+        run: echo "short_sha=$(echo ${{ github.sha }} | cut -c1-7)" >> "$GITHUB_OUTPUT"
+
+      - name: Update image tag in prod overlay
+        run: |
+          cd k8s/overlays/prod
+          kustomize edit set image ghcr.io/sankarikals/fintechapp:latest=\
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ steps.sha.outputs.short_sha }}
+
+      - name: Apply Kustomize prod overlay
+        run: |
+          kubectl apply -k k8s/overlays/prod --server-side
+          kubectl rollout status deployment/fintechapp \
+            -n fintechapp --timeout=180s
+
+      - name: Smoke test – health endpoint
+        run: |
+          CLUSTER_IP=$(kubectl get svc fintechapp -n fintechapp \
+            -o jsonpath='{.spec.clusterIP}')
+          kubectl run smoke-test --rm -i --restart=Never \
+            --image=curlimages/curl:latest \
+            -- curl -sf "http://${CLUSTER_IP}/health" || true

@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fintechapp-config
+  namespace: fintechapp
+  labels:
+    app.kubernetes.io/name: fintechapp
+    app.kubernetes.io/component: config
+data:
+  NODE_ENV: "production"
+  PORT: "3000"
+  HOST: "0.0.0.0"
+  LOG_LEVEL: "info"

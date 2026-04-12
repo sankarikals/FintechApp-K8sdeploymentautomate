@@ -1,0 +1,28 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: fintechapp
+  namespace: fintechapp
+  labels:
+    app.kubernetes.io/name: fintechapp
+    app.kubernetes.io/component: api
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: fintechapp.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: fintechapp
+                port:
+                  name: http
+  tls:
+    - hosts:
+        - fintechapp.example.com
+      secretName: fintechapp-tls

@@ -1,0 +1,13 @@
+apiVersion: v2
+name: fintechapp
+description: Helm chart for FintechApp – a Kubernetes-native fintech REST API
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - fintech
+  - api
+  - nodejs
+home: https://github.com/sankarikals/FintechApp-K8sdeploymentautomate
+maintainers:
+  - name: sankarikals

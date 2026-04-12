@@ -1,0 +1,12 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: fintechapp
+  namespace: fintechapp
+  labels:
+    app.kubernetes.io/name: fintechapp
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: fintechapp

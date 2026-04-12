@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: fintechapp
+  namespace: fintechapp
+  labels:
+    app.kubernetes.io/name: fintechapp
+    app.kubernetes.io/component: api
+spec:
+  type: ClusterIP
+  selector:
+    app: fintechapp
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP

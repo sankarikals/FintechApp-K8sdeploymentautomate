@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+app/node_modules/
+
+# Coverage reports
+coverage/
+app/coverage/
+
+# Build artifacts
+dist/
+build/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor directories
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Kubernetes secrets (never commit actual secrets)
+k8s/**/secret-*.yaml
+k8s/**/*-credentials.yaml
+kubeconfig
+*.kubeconfig
