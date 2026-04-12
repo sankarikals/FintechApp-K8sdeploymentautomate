@@ -1,0 +1,1 @@
+# FintechApp-K8sdeploymentautomate
