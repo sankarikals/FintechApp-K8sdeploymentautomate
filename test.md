@@ -334,7 +334,8 @@ kubectl port-forward svc/transaction-service 8083:8083 -n banking
 🧪 Step 10: Test APIs
 curl http://localhost:8081/health
 
-<img width="1863" height="956" alt="image" src="https://github.com/user-attachments/assets/d654a49a-8ad1-4f55-bd12-aeabb5fa548f" />
+<img width="1863" height="956" alt="image" src="https://github.com/user-attachments/assets/b9379fa1-9462-4607-b131-28714e6df678" />
+
 
 
 4️⃣ AWS EKS Deployment (Future Plan)
