@@ -222,6 +222,7 @@ python app.py
 
 
 
+<img width="1863" height="956" alt="image" src="https://github.com/user-attachments/assets/7c9477cb-10a5-4df5-b6f5-269ea618f34f" />
 
 
 
