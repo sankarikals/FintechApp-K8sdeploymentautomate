@@ -16,7 +16,8 @@ spec:
     spec:
       containers:
       - name: auth-service
-        image: akhilmittal510/auth-service:latest
+        image: banking-services-auth-service
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8082
         env:

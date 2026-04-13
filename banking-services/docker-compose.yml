@@ -1,0 +1,60 @@
+version: '3.9'
+
+services:
+
+  mysql:
+    image: mysql:8
+    container_name: fintech-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  account-service:
+    build:
+      context: .
+      dockerfile: account-service/dockerfile
+    container_name: account-service
+    depends_on:
+      - mysql
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DB: account_db
+    ports:
+      - "8081:8081"
+
+  transaction-service:
+    build:
+      context: .
+      dockerfile: transaction-service/dockerfile
+    container_name: transaction-service
+    depends_on:
+      - mysql
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DB: transaction_db
+    ports:
+      - "8083:8083"
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: auth-service/dockerfile
+    container_name: auth-service
+    depends_on:
+      - mysql
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DB: auth_db
+    ports:
+      - "8082:8082"
+
+volumes:
+  mysql_data:

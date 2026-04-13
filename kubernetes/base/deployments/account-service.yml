@@ -16,7 +16,8 @@ spec:
     spec:
       containers:
       - name: account-service
-        image: akhilmittal510/account-service:latest
+        image: banking-services-account-service:latest
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8081
         env:
@@ -31,7 +32,7 @@ spec:
         - name: MYSQL_DB
           value: banking
         - name: PYTHONPATH
-          value: "/app/account-service"
+          value: "/app"
         - name: OTEL_LOG_LEVEL
           value: DEBUG
         - name: OTEL_EXPORTER_JAEGER_ENDPOINT

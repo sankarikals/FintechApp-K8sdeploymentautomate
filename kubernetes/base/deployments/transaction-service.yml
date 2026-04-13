@@ -16,7 +16,8 @@ spec:
     spec:
       containers:
       - name: transaction-service
-        image: akhilmittal510/transaction-service:latest
+        image: banking-services-transaction-service
+        imagePullPolicy: Never
         ports:
         - containerPort: 8083
         env:

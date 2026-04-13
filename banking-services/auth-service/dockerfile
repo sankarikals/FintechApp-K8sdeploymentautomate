@@ -2,27 +2,30 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Copy the entire project root into the container
+# Copy entire project (needed for common module)
 COPY . /app
 
-# Set up the working directory for account-service
+# Install common/shared package from root
+RUN pip install --no-cache-dir -e .
+
+# Switch to auth-service
 WORKDIR /app/auth-service
 
-# Install dependencies
+# Install service-specific dependencies
 RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install --no-cache-dir -e ..
 
-# Set PYTHONPATH
+# Install curl for healthcheck
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
+# Environment variables
 ENV PYTHONPATH=/app
-
-# Set Environment Variables
 ENV PYTHONUNBUFFERED=1
 
-# Health Check
+# Health check
 HEALTHCHECK --interval=30s --timeout=3s \
     CMD curl -f http://localhost:8082/health || exit 1
 
 EXPOSE 8082
 
-# Run with Uvicorn
+# Start service
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8082", "--workers", "4"]
