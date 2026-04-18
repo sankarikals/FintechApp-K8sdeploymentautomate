@@ -392,3 +392,111 @@ EKS	Production deployment
 If you want next level:
 👉 I can :contentReference[oaicite:0]{index=0}  
 👉 Or :contentReference[oaicite:1]{index=1}
+
+
+
+
+//////////////////////////
+
+kubectl create namespace monitoring
+
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts; helm repo add grafana https://grafana.github.io/helm-charts; helm repo update
+
+https://github.com/helm/helm/releases
+
+ Get-Command helm -ErrorAction SilentlyContinue > to make helm command work in vs code
+ 
+ Install >
+ 
+ helm install monitoring prometheus-community/kube-prometheus-stack --namespace monitoring --create-namespace
+ 
+ entautomate> helm install monitoring prometheus-community/kube-prometheus-stack --namespace monitoring --create-namespace
+NAME: monitoring
+LAST DEPLOYED: Sat Apr 18 15:05:19 2026
+NAMESPACE: monitoring
+STATUS: deployed
+REVISION: 1
+DESCRIPTION: Install complete
+TEST SUITE: None
+NOTES:
+kube-prometheus-stack has been installed. Check its status by running:
+  kubectl --namespace monitoring get pods -l "release=monitoring"
+
+Get Grafana 'admin' user password by running:
+
+  kubectl --namespace monitoring get secrets monitoring-grafana -o jsonpath="{.data.admin-password}" | base64 -d ; echo
+
+Access Grafana local instance:
+
+  export POD_NAME=$(kubectl --namespace monitoring get pod -l "app.kubernetes.io/name=grafana,app.kubernetes.io/instance=monitoring" -oname)
+  kubectl --namespace monitoring port-forward $POD_NAME 3000
+
+Get your grafana admin user password by running:
+
+  kubectl get secret --namespace monitoring -l app.kubernetes.io/component=admin-secret -o jsonpath="{.items[0].data.admin-password}" | base64 --decode ; echo
+
+
+Visit https://github.com/prometheus-operator/kube-prometheus for instructions on how to create & configure Alertmanager and Prometheus instances using the Operator
+ 
+ 
+ 
+ Perfect! Here’s how to upload your custom Grafana dashboard (service-dashboard.json) to the Grafana instance deployed by kube-prometheus-stack:
+
+Get the Grafana admin password:
+kubectl get secret --namespace monitoring monitoring-grafana -o jsonpath="{.data.admin-password}" | base64 --decode
+
+LeGbJGR1LyLSlvHs1wreNIKJ3SIphML8NZp8n2gi
+
+Forward the Grafana service to your local machine:
+kubectl port-forward --namespace monitoring svc/monitoring-grafana 3000:80
+
+Open your browser and go to:
+http://localhost:3000
+Login with username: admin and the password from step 1.
+
+In Grafana, go to Dashboards → Import, upload your service-dashboard.json file, and select the Prometheus data source.
+
+
+Great! Here’s how to see your application metrics in Grafana and access the Prometheus UI:
+
+1. Grafana:
+
+Go to http://localhost:3000 and log in.
+Click the “+” icon on the left, then “Import.”
+Upload your service-dashboard.json file or paste its content.
+For “Prometheus” data source, select the one named “Prometheus” (it’s auto-provisioned by the Helm chart).
+Click “Import.” Your dashboard will now show your application metrics if your services expose Prometheus metrics and are being scraped.
+2. Prometheus UI:
+
+In a new terminal, run:
+kubectl port-forward -n monitoring svc/monitoring-kube-prometheus-sta-prometheus 9090:9090
+Open http://localhost:9090 in your browser.
+You can now query metrics directly in the Prometheus UI.
+
+
+
+If you see "No data" in your Grafana dashboard, it usually means Prometheus is not scraping your application's metrics. Here’s how to fix it:
+
+1. Check your application exposes Prometheus metrics:
+
+Your app should have an endpoint like /metrics returning Prometheus-formatted metrics.
+2. Create a ServiceMonitor or PodMonitor for your app:
+
+The kube-prometheus-stack uses ServiceMonitor or PodMonitor CRDs to discover and scrape targets.
+Example ServiceMonitor YAML (replace labels/selectors/ports as needed):
+3. Ensure your Service has the correct labels and exposes the metrics port.
+
+4. Apply the ServiceMonitor:
+kubectl apply -f servicemonitor.yaml
+
+5. Wait a minute, then check Prometheus targets:
+
+Go to http://localhost:9090/targets
+Your app should appear as “UP” in the list.
+6. Refresh your Grafana dashboard.
+
+If you need a custom ServiceMonitor YAML, please provide:
+
+The namespace of your app
+The name of the Kubernetes Service exposing metrics
+The port name or number for metrics
