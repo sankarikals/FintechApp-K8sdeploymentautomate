@@ -499,4 +499,5 @@ If you need a custom ServiceMonitor YAML, please provide:
 
 The namespace of your app
 The name of the Kubernetes Service exposing metrics
+
 The port name or number for metrics
